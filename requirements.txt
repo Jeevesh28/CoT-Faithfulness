@@ -1,0 +1,29 @@
+# Core
+numpy>=1.26
+pandas>=2.1
+tqdm>=4.66
+python-dotenv>=1.0
+pyyaml>=6.0
+
+# Datasets
+datasets>=2.19
+huggingface_hub>=0.23
+
+# LLM backends
+anthropic>=0.40
+google-generativeai>=0.8
+
+# Open-weight model + attention
+torch>=2.2
+transformers>=4.44
+accelerate>=0.30
+sentencepiece>=0.2
+bitsandbytes>=0.43  # optional, for 8-bit loading if needed
+
+# Plotting / notebook
+matplotlib>=3.8
+seaborn>=0.13
+jupyter>=1.0
+
+# Tests
+pytest>=8.0

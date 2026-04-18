@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+results/baseline_cots.jsonl
+results/perturbed_cots.jsonl
+results/attention/*.npz
+results/figures/
+data/raw/
+.DS_Store

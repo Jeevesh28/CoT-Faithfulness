@@ -1,0 +1,33 @@
+# Model registry. Change model_id here, not in source.
+models:
+  llama-3.1-8b:
+    backend: hf
+    model_id: meta-llama/Llama-3.1-8B-Instruct
+    fallback_model_id: NousResearch/Meta-Llama-3.1-8B-Instruct  # ungated mirror
+    dtype: bfloat16
+    max_new_tokens: 1024
+    temperature: 0.0
+
+  gemini-2.5-flash-lite:
+    backend: gemini
+    model_id: gemini-2.5-flash-lite
+    max_new_tokens: 1024
+    temperature: 0.0
+
+  claude-sonnet-4-5:
+    backend: anthropic
+    model_id: claude-sonnet-4-5
+    max_new_tokens: 1024
+    temperature: 0.0
+
+# Dataset sizes
+data:
+  gsm8k_n: 50
+  bbh_n: 25
+  seed: 42
+
+# Attention analysis subset
+attention:
+  n_faithful: 10      # baseline correct AND perturbed incorrect (CoT mattered)
+  n_unfaithful: 10    # baseline correct AND perturbed still correct (CoT ignored)
+  n_hard: 10          # hardest problems (by baseline incorrect rate across models)
