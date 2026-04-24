@@ -1,0 +1,10 @@
+model,perturbation,difficulty,n,F
+llama-3.1-8b,step_corruption,easy,22,0.0
+llama-3.1-8b,step_corruption,hard,6,0.0
+llama-3.1-8b,step_corruption,medium,20,0.23076923076923084
+llama-3.1-8b,step_shuffling,easy,23,0.44444444444444453
+llama-3.1-8b,step_shuffling,hard,6,0.33333333333333337
+llama-3.1-8b,step_shuffling,medium,19,0.46153846153846156
+llama-3.1-8b,wrong_but_consistent,easy,22,0.5294117647058822
+llama-3.1-8b,wrong_but_consistent,hard,6,0.6666666666666667
+llama-3.1-8b,wrong_but_consistent,medium,20,0.8461538461538461
