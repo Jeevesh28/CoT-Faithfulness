@@ -11,7 +11,6 @@ huggingface_hub>=0.23
 
 # LLM backends
 anthropic>=0.40
-google-generativeai>=0.8
 
 # Open-weight model + attention
 torch>=2.2

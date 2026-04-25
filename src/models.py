@@ -64,53 +64,74 @@ class LLMClient(ABC):
 # HuggingFace Llama 3.1 client
 # ----------------------------------------------------------------------------
 
-class HFLlamaClient(LLMClient):
-    """Llama 3.1 8B Instruct via ``transformers``.
+class HFChatClient(LLMClient):
+    """Generic HuggingFace chat-instruct client used for BOTH Llama 3.1 8B and
+    Gemma. Loads with ``attn_implementation="eager"`` so ``output_attentions``
+    works for the attention analysis stage (only used for the Llama instance).
 
-    On an A100 (bf16) this uses ~16 GB VRAM and runs a forward pass in <1s
-    on typical CoT-length inputs. We expose ``self.model`` and ``self.tokenizer``
-    so the attention module can reuse the loaded checkpoint.
+    Exposes ``self.model`` and ``self.tokenizer`` for ``src.attention``.
     """
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, name: str):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        self.name = "llama-3.1-8b"
+        self.name = name
         self.cfg = cfg
 
         model_id = cfg["model_id"]
         hf_token = os.environ.get("HF_TOKEN")
         dtype = getattr(torch, cfg.get("dtype", "bfloat16"))
+        load_in_4bit = bool(cfg.get("load_in_4bit", False))
 
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                torch_dtype=dtype,
-                device_map="auto",
-                attn_implementation="eager",   # needed for output_attentions
-                token=hf_token,
+        load_kwargs: Dict[str, object] = dict(
+            torch_dtype=dtype,
+            device_map="auto",
+            attn_implementation="eager",
+            token=hf_token,
+        )
+        if load_in_4bit:
+            from transformers import BitsAndBytesConfig
+            load_kwargs.pop("torch_dtype", None)
+            load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True, bnb_4bit_compute_dtype=dtype,
+                bnb_4bit_quant_type="nf4",
             )
-        except Exception:
-            # Fallback to ungated mirror if the user has no license acceptance.
-            fallback = cfg.get("fallback_model_id")
-            if not fallback:
-                raise
-            self.tokenizer = AutoTokenizer.from_pretrained(fallback)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                fallback,
-                torch_dtype=dtype,
-                device_map="auto",
-                attn_implementation="eager",
-            )
+
+        last_err = None
+        for candidate in [model_id, cfg.get("fallback_model_id")]:
+            if not candidate:
+                continue
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(candidate, token=hf_token)
+                self.model = AutoModelForCausalLM.from_pretrained(candidate, **load_kwargs)
+                self._loaded_model_id = candidate
+                break
+            except Exception as e:
+                last_err = e
+                print(f"[{name}] could not load {candidate}: {e}")
+        else:
+            raise RuntimeError(f"Failed to load {name}: {last_err}")
 
         self.model.eval()
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
     def _format(self, messages: List[Dict[str, str]]) -> str:
-        # Llama-3.1 has a native chat template.
+        # Gemma's chat template doesn't accept a separate "system" role, so
+        # we merge any system messages into the first user turn.
+        if "gemma" in self._loaded_model_id.lower():
+            sys_text, merged = "", []
+            for m in messages:
+                if m["role"] == "system":
+                    sys_text += m["content"] + "\n\n"
+                elif m["role"] == "user":
+                    merged.append({"role": "user",
+                                   "content": (sys_text + m["content"]) if not merged else m["content"]})
+                    sys_text = ""
+                else:
+                    merged.append(m)
+            messages = merged
         return self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
@@ -138,74 +159,20 @@ class HFLlamaClient(LLMClient):
         )
 
 
-# ----------------------------------------------------------------------------
-# Gemini 2.5 Flash Lite
-# ----------------------------------------------------------------------------
-
-class GeminiClient(LLMClient):
-
-    def __init__(self, cfg: dict):
-        import google.generativeai as genai
-
-        self.name = "gemini-2.5-flash-lite"
-        self.cfg = cfg
-        api_key = os.environ["GOOGLE_API_KEY"]
-        genai.configure(api_key=api_key)
-        self.genai = genai
-        self.model_id = cfg["model_id"]
-
-    @staticmethod
-    def _to_gemini(messages):
-        """Gemini expects {role: user|model, parts: [text]}. System prompts
-        are merged into the first user message."""
-        system = ""
-        contents = []
-        for m in messages:
-            if m["role"] == "system":
-                system += m["content"] + "\n\n"
-            elif m["role"] == "user":
-                contents.append({
-                    "role": "user",
-                    "parts": [{"text": (system + m["content"]) if not contents else m["content"]}],
-                })
-                system = ""
-            elif m["role"] == "assistant":
-                contents.append({"role": "model", "parts": [{"text": m["content"]}]})
-        return contents
-
-    def generate(self, messages, max_new_tokens=1024, temperature=0.0) -> Generation:
-        contents = self._to_gemini(messages)
-        model = self.genai.GenerativeModel(self.model_id)
-        for attempt in range(4):
-            try:
-                resp = model.generate_content(
-                    contents,
-                    generation_config={
-                        "max_output_tokens": max_new_tokens,
-                        "temperature": temperature,
-                    },
-                )
-                break
-            except Exception as e:
-                if attempt == 3:
-                    raise
-                time.sleep(2 ** attempt)
-        text = resp.text if getattr(resp, "text", None) else ""
-        usage = getattr(resp, "usage_metadata", None)
-        tokens = int(getattr(usage, "total_token_count", 0) or 0)
-        return Generation(text=text, tokens_used=tokens, raw={"candidates": len(resp.candidates)})
+# Backwards-compatible alias used by ``src.attention``.
+HFLlamaClient = HFChatClient
 
 
 # ----------------------------------------------------------------------------
-# Claude Sonnet 4.5
+# Claude Opus 4.6
 # ----------------------------------------------------------------------------
 
 class AnthropicClient(LLMClient):
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, name: str = "claude-opus-4-6"):
         import anthropic
 
-        self.name = "claude-sonnet-4-5"
+        self.name = name
         self.cfg = cfg
         self.client = anthropic.Anthropic()
         self.model_id = cfg["model_id"]
@@ -245,16 +212,14 @@ class AnthropicClient(LLMClient):
 # Factory
 # ----------------------------------------------------------------------------
 
-_BACKENDS = {
-    "hf": HFLlamaClient,
-    "gemini": GeminiClient,
-    "anthropic": AnthropicClient,
-}
-
-
 def get_client(name: str, cfg: Optional[dict] = None) -> LLMClient:
     cfg = cfg or load_config()
     if name not in cfg["models"]:
         raise KeyError(f"{name} not in configs/models.yaml")
     mcfg = cfg["models"][name]
-    return _BACKENDS[mcfg["backend"]](mcfg)
+    backend = mcfg["backend"]
+    if backend == "hf":
+        return HFChatClient(mcfg, name=name)
+    if backend == "anthropic":
+        return AnthropicClient(mcfg, name=name)
+    raise KeyError(f"Unknown backend: {backend}")

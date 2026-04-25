@@ -2,21 +2,29 @@
 models:
   llama-3.1-8b:
     backend: hf
+    # Llama-3.1-8B-Instruct (the chat-tuned variant) is the right pick for
+    # CoT prompting. The base model would not follow the "Step N:" format.
     model_id: meta-llama/Llama-3.1-8B-Instruct
     fallback_model_id: NousResearch/Meta-Llama-3.1-8B-Instruct  # ungated mirror
     dtype: bfloat16
     max_new_tokens: 1024
     temperature: 0.0
 
-  gemini-2.5-flash-lite:
-    backend: gemini
-    model_id: gemini-2.5-flash-lite
+  gemma-4-31b:
+    backend: hf
+    # NOTE: As of 2025-05 the largest published Gemma instruct model is
+    # google/gemma-3-27b-it. If `google/gemma-4-31B` is not yet on the Hub,
+    # the loader will fall back to the 3-27b release automatically.
+    model_id: google/gemma-4-31B
+    fallback_model_id: google/gemma-3-27b-it
+    dtype: bfloat16
+    load_in_4bit: false        # set true if you hit OOM on 80GB A100
     max_new_tokens: 1024
     temperature: 0.0
 
-  claude-sonnet-4-5:
+  claude-opus-4-6:
     backend: anthropic
-    model_id: claude-sonnet-4-5
+    model_id: claude-opus-4-6
     max_new_tokens: 1024
     temperature: 0.0
 
@@ -30,4 +38,4 @@ data:
 attention:
   n_faithful: 10      # baseline correct AND perturbed incorrect (CoT mattered)
   n_unfaithful: 10    # baseline correct AND perturbed still correct (CoT ignored)
-  n_hard: 10          # hardest problems (by baseline incorrect rate across models)
+  n_hard: 10          # hardest problems (by difficulty bucket)

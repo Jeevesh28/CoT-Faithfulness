@@ -7,9 +7,9 @@ We measure **chain-of-thought faithfulness** across three models:
 
 | Slot | Model | Backend | Used for |
 |------|-------|---------|----------|
-| Open-weight | Llama 3.1 8B Instruct | HuggingFace `transformers` | Behavioral **and** attention |
-| Closed (small) | Gemini 2.5 Flash Lite | Google AI Studio | Behavioral only |
-| Closed (big) | Claude Sonnet 4.5 | Anthropic API | Behavioral only |
+| Open-weight (small) | Llama 3.1 8B Instruct | HuggingFace `transformers` | Behavioral **and** attention |
+| Open-weight (big) | Gemma 4 31B (fallback: Gemma 3 27B Instruct) | HuggingFace `transformers` | Behavioral only |
+| Closed | Claude Opus 4.6 | Anthropic API | Behavioral only |
 
 ## Quickstart (Colab A100 recommended)
 
@@ -17,13 +17,13 @@ We measure **chain-of-thought faithfulness** across three models:
 git clone <this repo>
 cd cot-faithfulness
 pip install -r requirements.txt
-cp .env.example .env   # fill in GOOGLE_API_KEY, ANTHROPIC_API_KEY, HF_TOKEN
+cp .env.example .env   # fill in ANTHROPIC_API_KEY, HF_TOKEN
 
 # 1. Prepare 75-problem split (50 GSM8K-Platinum + 25 BBH)
 python -m scripts.make_subset
 
 # 2. Stage 2 — baseline CoT extraction (225 rows: 75 × 3 models)
-python -m scripts.run_baseline --models llama-3.1-8b gemini-2.5-flash-lite claude-sonnet-4-5
+python -m scripts.run_baseline --models llama-3.1-8b gemma-4-31b claude-opus-4-6
 
 # 3. Stage 3 — four perturbations × 3 models (900 rows)
 python -m scripts.run_perturbations
@@ -43,7 +43,7 @@ cot-faithfulness/
 ├── configs/models.yaml        # model registry + dataset sizes
 ├── src/
 │   ├── datasets.py            # GSM8K-Platinum + BBH loaders
-│   ├── models.py              # LLMClient abstraction (HF / Gemini / Anthropic)
+│   ├── models.py              # LLMClient abstraction (HF chat / Anthropic)
 │   ├── prompts.py             # CoT prompt template
 │   ├── cot_parser.py          # text → labeled steps + answer
 │   ├── perturbations.py       # four perturbation functions
@@ -79,9 +79,9 @@ cot-faithfulness/
 
 | Model | Calls | Approx. cost |
 |-------|-------|-------------|
-| Llama 3.1 8B (HF, A100 on Colab) | 375 | ~20 min of A100 time |
-| Gemini 2.5 Flash Lite | 375 | Free tier (~25 min @ 15 RPM) |
-| Claude Sonnet 4.5 | 375 | ~$3–$6 |
+| Llama 3.1 8B Instruct (HF, A100 on Colab) | 375 | ~20 min of A100 time |
+| Gemma 4 31B / 3 27B Instruct (HF, A100 on Colab) | 375 | ~45 min of A100 time (bf16; flip `load_in_4bit: true` if OOM) |
+| Claude Opus 4.6 | 375 | ~$8–$12 (well within $25 credit) |
 
 ## Role Split (40-hour budget, ~13h / person)
 

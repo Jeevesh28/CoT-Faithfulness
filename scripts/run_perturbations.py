@@ -23,8 +23,29 @@ from tqdm import tqdm
 from src.cot_parser import parse_cot
 from src.evaluate import answer_equal
 from src.models import get_client, load_config
-from src.perturbations import PERTURBATIONS, wrong_but_consistent
+from src.perturbations import (
+    PERTURBATIONS, step_corruption, step_shuffling,
+    early_termination, wrong_but_consistent,
+)
 from src.prompts import build_reinject_messages
+
+
+def _apply_perturbation(ptype, cot_steps, *, seed, donor=None, keep_frac=0.5):
+    """Dispatch to the right perturbation function with the right kwargs.
+
+    This avoids ``early_termination()`` getting a stray ``seed=`` kwarg.
+    """
+    if ptype == "step_corruption":
+        return step_corruption(cot_steps, seed=seed)
+    if ptype == "step_shuffling":
+        return step_shuffling(cot_steps, seed=seed)
+    if ptype == "early_termination":
+        return early_termination(cot_steps, keep_frac=keep_frac)
+    if ptype == "wrong_but_consistent":
+        if donor is None:
+            raise ValueError("wrong_but_consistent requires donor")
+        return wrong_but_consistent(cot_steps, donor)
+    raise KeyError(ptype)
 
 
 BASE = pathlib.Path("results/baseline_cots.jsonl")
@@ -74,60 +95,77 @@ def main():
     donors = _donor_pool(baseline)
     done = _done_keys()
 
-    clients = {m: get_client(m, cfg) for m in sorted({r["model"] for r in baseline})}
+    # Process one model at a time so we never hold two big HF models in VRAM.
+    models = sorted({r["model"] for r in baseline})
+    print(f"Models to process (sequentially): {models}")
 
     with OUT.open("a") as fh:
-        for b in tqdm(baseline, desc="perturbations", file=sys.stdout):
-            if not b["cot_steps"]:
-                continue
-            client = clients[b["model"]]
-            mcfg = cfg["models"][b["model"]]
-            rng = random.Random(args.seed + hash(b["id"]) % 2**31)
-
-            for ptype in args.perturbations:
-                key = (b["id"], b["model"], ptype)
-                if key in done:
+        for model_name in models:
+            print(f"\n=== {model_name} ===")
+            client = get_client(model_name, cfg)
+            mcfg = cfg["models"][model_name]
+            rows_for_model = [r for r in baseline if r["model"] == model_name]
+            for b in tqdm(rows_for_model, desc=model_name, file=sys.stdout):
+                if not b["cot_steps"]:
                     continue
-                try:
-                    if ptype == "wrong_but_consistent":
-                        pool = [c for c in donors.get(b["model"], []) if c != b["cot_steps"]]
-                        if not pool:
-                            continue
-                        donor = rng.choice(pool)
-                        pert_steps, spans = wrong_but_consistent(b["cot_steps"], donor)
-                    else:
-                        fn = PERTURBATIONS[ptype]
-                        pert_steps, spans = fn(b["cot_steps"], seed=rng.randint(0, 2**31))
+                rng = random.Random(args.seed + hash(b["id"]) % 2**31)
 
-                    pert_text = "\n".join(pert_steps)
-                    messages = build_reinject_messages(b["question"], pert_text)
-                    g = client.generate(
-                        messages,
-                        max_new_tokens=min(128, mcfg.get("max_new_tokens", 128)),
-                        temperature=mcfg.get("temperature", 0.0),
-                    )
-                    _, answer = parse_cot(g.text)
-                    row = {
-                        "id": b["id"],
-                        "model": b["model"],
-                        "perturbation": ptype,
-                        "original_cot_steps": b["cot_steps"],
-                        "perturbed_cot_steps": pert_steps,
-                        "perturbed_char_spans": spans,
-                        "perturbed_cot_raw": pert_text,
-                        "question": b["question"],
-                        "gold_answer": b["gold_answer"],
-                        "predicted_answer": answer,
-                        "raw_output": g.text,
-                        "correct": answer_equal(answer, b["gold_answer"]),
-                        "changed_answer": answer != b["predicted_answer"],
-                        "tokens_used": g.tokens_used,
-                    }
-                    fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                    fh.flush()
-                except Exception as e:
-                    print(f"  !! {key} failed: {e}")
-                    traceback.print_exc()
+                for ptype in args.perturbations:
+                    key = (b["id"], b["model"], ptype)
+                    if key in done:
+                        continue
+                    try:
+                        donor = None
+                        if ptype == "wrong_but_consistent":
+                            pool = [c for c in donors.get(b["model"], [])
+                                    if c != b["cot_steps"]]
+                            if not pool:
+                                continue
+                            donor = rng.choice(pool)
+                        pert_steps, spans = _apply_perturbation(
+                            ptype, b["cot_steps"],
+                            seed=rng.randint(0, 2**31), donor=donor,
+                        )
+
+                        pert_text = "\n".join(pert_steps)
+                        messages = build_reinject_messages(b["question"], pert_text)
+                        g = client.generate(
+                            messages,
+                            max_new_tokens=min(128, mcfg.get("max_new_tokens", 128)),
+                            temperature=mcfg.get("temperature", 0.0),
+                        )
+                        _, answer = parse_cot(g.text)
+                        row = {
+                            "id": b["id"],
+                            "model": b["model"],
+                            "perturbation": ptype,
+                            "original_cot_steps": b["cot_steps"],
+                            "perturbed_cot_steps": pert_steps,
+                            "perturbed_char_spans": spans,
+                            "perturbed_cot_raw": pert_text,
+                            "question": b["question"],
+                            "gold_answer": b["gold_answer"],
+                            "predicted_answer": answer,
+                            "raw_output": g.text,
+                            "correct": answer_equal(answer, b["gold_answer"]),
+                            "changed_answer": answer != b["predicted_answer"],
+                            "tokens_used": g.tokens_used,
+                        }
+                        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+                        fh.flush()
+                    except Exception as e:
+                        print(f"  !! {key} failed: {e}")
+                        traceback.print_exc()
+
+            # Free GPU memory before loading the next HF model.
+            del client
+            try:
+                import gc, torch
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
 
     print(f"\nDone → {OUT}")
 
