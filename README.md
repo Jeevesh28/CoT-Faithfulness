@@ -8,7 +8,7 @@ We measure **chain-of-thought faithfulness** across three models:
 | Slot | Model | Backend | Used for |
 |------|-------|---------|----------|
 | Open-weight (small) | Llama 3.1 8B Instruct | HuggingFace `transformers` | Behavioral **and** attention |
-| Open-weight (big) | Gemma 4 31B Instruct (`google/gemma-4-31B-it`; fallback `google/gemma-3-27b-it`) | HuggingFace `transformers` | Behavioral only |
+| Open-weight (big) | Gemma 3 12B Instruct (`google/gemma-3-12b-it`; fallback `google/gemma-3-4b-it`) | HuggingFace `transformers` | Behavioral only |
 | Closed | Claude Opus 4.6 | Anthropic API | Behavioral only |
 
 ## Quickstart (Colab A100 recommended)
@@ -23,7 +23,7 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY, HF_TOKEN
 python -m scripts.make_subset
 
 # 2. Stage 2 — baseline CoT extraction (225 rows: 75 × 3 models)
-python -m scripts.run_baseline --models llama-3.1-8b gemma-4-31b claude-opus-4-6
+python -m scripts.run_baseline --models llama-3.1-8b gemma-3-12b claude-opus-4-6
 
 # 3. Stage 3 — four perturbations × 3 models (900 rows)
 python -m scripts.run_perturbations
@@ -80,7 +80,7 @@ cot-faithfulness/
 | Model | Calls | Approx. cost |
 |-------|-------|-------------|
 | Llama 3.1 8B Instruct (HF, A100 on Colab) | 375 | ~20 min of A100 time |
-| Gemma 4 31B Instruct / 3 27B Instruct (HF, A100 on Colab) | 375 | ~45 min of A100 time (bf16; flip `load_in_4bit: true` if OOM) |
+| Gemma 3 12B Instruct / 4B Instruct (HF, A100 on Colab) | 375 | ~10–20 min of A100 time in bf16 (flip `load_in_4bit: true` if OOM) |
 | Claude Opus 4.6 | 375 | ~$8–$12 (well within $25 credit) |
 
 ## Role Split (40-hour budget, ~13h / person)

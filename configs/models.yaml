@@ -10,13 +10,13 @@ models:
     max_new_tokens: 1024
     temperature: 0.0
 
-  gemma-4-31b:
+  gemma-3-12b:
     backend: hf
-    # Instruct-tuned Gemma 4 31B; falls back to Gemma 3 27B IT if unavailable.
-    model_id: google/gemma-4-31B-it
-    fallback_model_id: google/gemma-3-27b-it
+    # Gemma 3 12B Instruct (primary); 4B Instruct if the 12B checkpoint fails to load.
+    model_id: google/gemma-3-12b-it
+    fallback_model_id: google/gemma-3-4b-it
     dtype: bfloat16
-    load_in_4bit: false        # set true if you hit OOM on 80GB A100
+    load_in_4bit: false        # set true if you hit OOM (unlikely for 12B on A100)
     max_new_tokens: 1024
     temperature: 0.0
 

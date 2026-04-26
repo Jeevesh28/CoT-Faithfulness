@@ -81,7 +81,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/models.yaml")
     parser.add_argument("--models", nargs="+",
-                        default=["llama-3.1-8b", "gemma-4-31b", "claude-opus-4-6"])
+                        default=["llama-3.1-8b", "gemma-3-12b", "claude-opus-4-6"])
     args = parser.parse_args()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
