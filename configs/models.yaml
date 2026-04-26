@@ -12,10 +12,8 @@ models:
 
   gemma-4-31b:
     backend: hf
-    # NOTE: As of 2025-05 the largest published Gemma instruct model is
-    # google/gemma-3-27b-it. If `google/gemma-4-31B` is not yet on the Hub,
-    # the loader will fall back to the 3-27b release automatically.
-    model_id: google/gemma-4-31B
+    # Instruct-tuned Gemma 4 31B; falls back to Gemma 3 27B IT if unavailable.
+    model_id: google/gemma-4-31B-it
     fallback_model_id: google/gemma-3-27b-it
     dtype: bfloat16
     load_in_4bit: false        # set true if you hit OOM on 80GB A100
