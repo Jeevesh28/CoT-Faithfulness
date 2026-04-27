@@ -1,0 +1,122 @@
+[
+  {
+    "id": "gsm8k_01182",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "gsm8k_00440",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "bbh_object_counting_0105",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_01116",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "bbh_object_counting_0138",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "gsm8k_00093",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "bbh_navigate_0150",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_01182",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00228",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_00501",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "gsm8k_01098",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_00696",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00476",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00600",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00476",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "gsm8k_00318",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "bbh_navigate_0150",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "gsm8k_00865",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00569",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "gsm8k_00093",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_01034",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_00054",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "bbh_tracking_shuffled_objects_three_objects_0114",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "gsm8k_00447",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "gsm8k_00865",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "bbh_tracking_shuffled_objects_three_objects_0012",
+    "perturbation": "early_termination"
+  },
+  {
+    "id": "gsm8k_00865",
+    "perturbation": "step_corruption"
+  },
+  {
+    "id": "gsm8k_00919",
+    "perturbation": "wrong_but_consistent"
+  },
+  {
+    "id": "gsm8k_00054",
+    "perturbation": "step_shuffling"
+  },
+  {
+    "id": "bbh_tracking_shuffled_objects_three_objects_0087",
+    "perturbation": "step_corruption"
+  }
+]
